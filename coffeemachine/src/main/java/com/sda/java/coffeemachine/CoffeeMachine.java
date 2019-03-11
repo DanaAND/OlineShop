@@ -4,47 +4,87 @@ import com.sda.java.coffeemachine.menu.Espresso;
 import com.sda.java.coffeemachine.menu.FilterCoffee;
 import com.sda.java.coffeemachine.menu.Latte;
 
-import java.util.Map;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CoffeeMachine {
 
     Stock stock = new Stock();
+    CoffeeType coffeeType;
 
+    List<CoffeeMachineLog> preparedCoffeeHistory = new ArrayList<>();
 
-    public Stock getStock (){
-        return stock;
-    }
-
-    CoffeeType coffeeType = CoffeeType.FILTERCOFFEE;
 
     public static void main(String[] args) throws Exception {
         final CoffeeMachine coffeeMachine = new CoffeeMachine();
-        Stock stock = coffeeMachine.getStock();
-        stock.removeCoffee(100);
-        final Coffee coffee = coffeeMachine.prepareCoffee();
-        System.out.println("Consuming the coffee : " + coffee);
+        Stock stock = coffeeMachine.stock;
+        stock.addToStock(Ingredient.COFFEE, 200);
+        stock.addToStock(Ingredient.WATER, 200);
+        stock.addToStock(Ingredient.MILK, 200);
+        stock.addToStock(Ingredient.SUGAR, 200);
+
+        coffeeMachine.chooseCoffee(CoffeeType.LATTE);
+        coffeeMachine.prepareCoffee();
+        coffeeMachine.chooseCoffee(CoffeeType.ESPRESSO);
+        coffeeMachine.prepareCoffee();
+        coffeeMachine.chooseCoffee(CoffeeType.FILTERCOFFEE);
+        coffeeMachine.prepareCoffee();
+
+        try {
+            final Coffee coffee = coffeeMachine.prepareCoffee();
+            System.out.println("Consuming the coffee : " + coffee);
+        } catch ( NotEnoughIngredientsException e ) {
+            System.out.println(e.getMessage());
+        }
+
+        String log = coffeeMachine.showLog();
+        System.out.println("Printing history : " + System.lineSeparator() + log);
+        Files.write(Paths.get("print_history.log"), log.getBytes());
+
 
     }
 
-    public void setCoffeeType(CoffeeType coffeeType) {
+    public void chooseCoffee(CoffeeType coffeeType) {
         //todo: add check if credit is sufficient and show message
         this.coffeeType = coffeeType;
     }
 
+    public Stock getStock() {
+        return stock;
+    }
+
+
     public Coffee prepareCoffee() throws Exception {
-        if (stock.getCoffeeStock() > coffeeType.getCoffeeRequired()
-                && stock.getWaterStock() > coffeeType.getWaterRequired()
-                && stock.getMilkStock() > coffeeType.getMilkRequired()
-                && stock.getSugarStock() > coffeeType.getSugarRequired()) {
-            stock.removeCoffee(coffeeType.getCoffeeRequired());
-            stock.removeWater(coffeeType.getWaterRequired());
-            stock.removeMilk(coffeeType.getMilkRequired());
-            stock.removeSugar(coffeeType.getSugarRequired());
+        validateStock();
+        stock.removeFromStock(Ingredient.COFFEE, coffeeType.getCoffeeRequired());
+        stock.removeFromStock(Ingredient.WATER, coffeeType.getWaterRequired());
+        stock.removeFromStock(Ingredient.MILK, coffeeType.getMilkRequired());
+        stock.removeFromStock(Ingredient.SUGAR, coffeeType.getSugarRequired());
 
-            return createCoffee();
+        Coffee coffee = createCoffee();
+        CoffeeMachineLog coffeeMachineLog = new CoffeeMachineLog(coffee);
+        preparedCoffeeHistory.add(coffeeMachineLog);
+        return coffee;
+    }
 
+    private void validateStock() throws NotEnoughIngredientsException {
+        if (!(stock.getIngredient(Ingredient.COFFEE) >= coffeeType.getCoffeeRequired())) {
+            throw new NotEnoughIngredientsException(coffeeType, Ingredient.COFFEE);
         }
-        throw new Exception("Cannot create coffee");
+        if (!(stock.getIngredient(Ingredient.WATER) >= coffeeType.getWaterRequired())) {
+            throw new NotEnoughIngredientsException(coffeeType, Ingredient.WATER);
+        }
+        if (!(stock.getIngredient(Ingredient.MILK) >= coffeeType.getMilkRequired())) {
+            throw new NotEnoughIngredientsException(coffeeType, Ingredient.MILK);
+        }
+        if (!(stock.getIngredient(Ingredient.SUGAR) >= coffeeType.getSugarRequired())) {
+            throw new NotEnoughIngredientsException(coffeeType, Ingredient.SUGAR);
+        }
+
     }
 
     private Coffee createCoffee() {
@@ -62,6 +102,17 @@ public class CoffeeMachine {
             default:
                 return new FilterCoffee();
         }
+
+    }
+
+    public String showLog() {
+        final StringBuilder stringBuilder = new StringBuilder();
+        preparedCoffeeHistory.forEach(logEntry ->
+
+                stringBuilder.append(logEntry).append(System.lineSeparator())
+        );
+
+        return stringBuilder.toString();
 
     }
 
