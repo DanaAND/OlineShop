@@ -28,9 +28,9 @@ public class Stock {
         ingredients.put(ingredient, quantity + currentQuantity);
     }
 
-    public void removeFromStock(Ingredient ingredient, int quantity) throws Exception {
+    public void removeFromStock(Ingredient ingredient, int quantity) {
         if (!ingredients.containsKey(ingredient)) {
-            throw new Exception("Ingredient not found" + ingredient);
+            throw new IngredientNotFoundError("Ingredient not found" + ingredient);
         }
         Integer currentQuantity = ingredients.get(ingredient);
         ingredients.put(ingredient, currentQuantity - quantity);
